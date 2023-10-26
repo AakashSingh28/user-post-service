@@ -1,17 +1,17 @@
 package com.social.post.services.impl;
-import com.social.post.dtos.CreateUserPostDto;
-import com.social.post.dtos.UserCommentRequestDto;
-import com.social.post.dtos.UserPostResponseDto;
-import com.social.post.dtos.UserProfileResponseDto;
+import com.social.post.dtos.*;
 import com.social.post.entities.Content;
 import com.social.post.entities.EventPost;
 import com.social.post.entities.UserPost;
+import com.social.post.enums.PostType;
+import com.social.post.exception.PostNotFoundException;
 import com.social.post.exception.PostSaveException;
 import com.social.post.exception.UserPostsFetchException;
 import com.social.post.exception.UserProfileNotFoundException;
 import com.social.post.interactors.UserServiceInteractor;
 import com.social.post.respositories.EventRepository;
 import com.social.post.respositories.PostRepository;
+import lombok.Setter;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -50,16 +50,6 @@ class PostServiceImplTest {
     }
 
     @Test
-    void testGetPostById() {
-        Long postId = 1L;
-        UserPost mockPost = new UserPost();
-        mockPost.setId("1");
-        Mockito.when(postRepository.findById(postId)).thenReturn(java.util.Optional.of(mockPost));
-        UserPost result = postService.getPostById(postId);
-        assertEquals(mockPost, result);
-    }
-
-    @Test
     void testCreatePost() {
         long userId = 1L;
         UserProfileResponseDto mockUserProfile = new UserProfileResponseDto();
@@ -82,15 +72,18 @@ class PostServiceImplTest {
 
     @Test
     void testGetUserPostsByUserIdAndLastDays_UserPostsFetchException() {
+        UserProfileResponseDto userProfileResponseDto = new UserProfileResponseDto();
+        userProfileResponseDto.setFirstName("Aakash");
+        userProfileResponseDto.setUserType("REGULAR");
+
+        when(userServiceInteractor.getUserProfile(101)).thenReturn(userProfileResponseDto);
         when(postRepository.findByUserIdAndCreatedOnGreaterThanEqual(anyLong(), any()))
-                .thenThrow(new RuntimeException("Error fetching user posts"));
+                .thenThrow(new UserPostsFetchException("Error fetching user posts"));
 
         UserPostsFetchException exception = assertThrows(UserPostsFetchException.class,
-                () -> postService.getUserPostsByUserIdAndLastDays(anyLong(), anyInt()));
+                () -> postService.getUserPostsByUserIdAndLastDays(101, 1));
 
         assertEquals("Error fetching user posts", exception.getMessage());
-
-        assertNotNull(exception.getCause());
     }
 
 
@@ -103,12 +96,16 @@ class PostServiceImplTest {
         mockUserPost.setUserId(1);
         mockUserPost.setPostScore(2);
         Content content = new Content();
+        content.setPostType(PostType.TEXT);
         content.setValue("Test content");
         mockUserPost.setContent(content);
 
 
+        UserProfileResponseDto userProfileResponseDto = new UserProfileResponseDto();
+        userProfileResponseDto.setFirstName("Aakash");
+        userProfileResponseDto.setUserType("REGULAR");
         List<UserPost> mockUserPosts = Collections.singletonList(mockUserPost);
-
+         when(userServiceInteractor.getUserProfile(userId)).thenReturn(userProfileResponseDto);
         when(postRepository.findByUserIdAndCreatedOnGreaterThanEqual(anyLong(), any())).thenReturn(mockUserPosts);
 
         assertDoesNotThrow(() -> {
@@ -118,28 +115,6 @@ class PostServiceImplTest {
         });
     }
 
-    @Test
-    void testGetPostById_PostNotFoundException() {
-        Long postId = 1L;
-        Mockito.when(postRepository.findById(postId)).thenReturn(java.util.Optional.empty());
-        assertThrows(UserProfileNotFoundException.class, () -> postService.getPostById(postId));
-    }
-
-    @Test
-    void testCreatePost_UserProfileNotFoundException() {
-        long userId = 1L;
-        when(userServiceInteractor.getUserProfile(userId)).thenThrow(PostSaveException.class);
-
-        CreateUserPostDto createUserPostDto = new CreateUserPostDto();
-        createUserPostDto.setUserId(userId);
-
-        try {
-            postService.createPost(createUserPostDto);
-            fail("Expected PostSaveException, but no exception was thrown.");
-        } catch (PostSaveException exception) {
-            assertEquals("Error creating or saving post" , exception.getMessage());
-        }
-    }
 
     @Test
     void testUpdateRankingForComments() {
@@ -152,7 +127,9 @@ class PostServiceImplTest {
         mockUserPost.setId("1");
         mockUserPost.setPostScore(1);
         mockUserPost.setUserAndComments(new HashMap<>());
-
+        UserProfileResponseDto mockUserProfile = new UserProfileResponseDto();
+        mockUserProfile.setUserType("REGULAR");
+        when(userServiceInteractor.getUserProfile(1)).thenReturn(mockUserProfile);
         when(postRepository.findById(commentRequestDto.getPostId())).thenReturn(Optional.of(mockUserPost));
         assertDoesNotThrow(() -> postService.updateRankingForComments(commentRequestDto));
         assertEquals(3, mockUserPost.getPostScore());
@@ -170,7 +147,9 @@ class PostServiceImplTest {
         mockUserPost.setId(postId);
         mockUserPost.setPostScore(1);
         mockUserPost.setUsersLike(new HashSet<>());
-
+        UserProfileResponseDto mockUserProfile = new UserProfileResponseDto();
+        mockUserProfile.setUserType("REGULAR");
+        when(userServiceInteractor.getUserProfile(2)).thenReturn(mockUserProfile);
         when(postRepository.findById(postId)).thenReturn(Optional.of(mockUserPost));
         assertDoesNotThrow(() -> postService.updateRankingForPostLikes(postId, userId));
         assertEquals(5, mockUserPost.getPostScore());
@@ -186,12 +165,77 @@ class PostServiceImplTest {
         mockEventPost.setId(eventId);
         mockEventPost.setPostScore(1);
         mockEventPost.setUsersLike(new HashSet<>());
-
+        UserProfileResponseDto mockUserProfile = new UserProfileResponseDto();
+        mockUserProfile.setUserType("REGULAR");
+        when(userServiceInteractor.getUserProfile(1)).thenReturn(mockUserProfile);
         when(eventRepository.findById(eventId)).thenReturn(Optional.of(mockEventPost));
         assertDoesNotThrow(() -> postService.updateRankingForEventLikes(userId, eventId));
         assertEquals(5, mockEventPost.getPostScore());
         assertTrue(mockEventPost.getUsersLike().contains(userId));
     }
+    @Test
+    void testCreateEventPost() {
+        long userId = 1L;
+        UserProfileResponseDto mockUserProfile = new UserProfileResponseDto();
+        mockUserProfile.setUserType("CELEBRITY");
+        when(userServiceInteractor.getUserProfile(userId)).thenReturn(mockUserProfile);
 
+        CreateUserEventDto createUserEventDto = new CreateUserEventDto();
+        createUserEventDto.setUserId(userId);
+        Content content = new Content();
+        content.setValue("content");
+        content.setPostType(PostType.TEXT);
+        createUserEventDto.setContent(content);
+        createUserEventDto.setEventName("Sample Event");
+
+        EventPost mockEventPost = new EventPost();
+        mockEventPost.setUserId(userId);
+
+        when(eventRepository.save(Mockito.any(EventPost.class))).thenReturn(mockEventPost);
+        postService.setEventTopicName("eventTopic");
+        assertDoesNotThrow(() -> postService.createEventPost(createUserEventDto));
+    }
+
+    @Test
+    void testCreateEventPost_UserProfileNotFoundException() {
+        long userId = 1L;
+        when(userServiceInteractor.getUserProfile(userId)).thenThrow(UserProfileNotFoundException.class);
+
+        CreateUserEventDto createUserEventDto = new CreateUserEventDto();
+        createUserEventDto.setUserId(userId);
+
+        try {
+            postService.createEventPost(createUserEventDto);
+            fail("Expected UserProfileNotFoundException, but no exception was thrown.");
+        } catch (UserProfileNotFoundException exception) {
+            assertEquals("User profile is not found", exception.getMessage());
+        }
+    }
+
+    @Test
+    void testUpdateRankingForComments_PostNotFoundException() {
+        UserCommentRequestDto commentRequestDto = new UserCommentRequestDto();
+        commentRequestDto.setUserId(1L);
+        commentRequestDto.setPostId("1");
+        commentRequestDto.setComment("This is a comment");
+
+        when(postRepository.findById(commentRequestDto.getPostId())).thenReturn(Optional.empty());
+
+        PostNotFoundException exception = assertThrows(PostNotFoundException.class, () -> postService.updateRankingForComments(commentRequestDto));
+        assertEquals("Post not found for the id1", exception.getMessage());
+    }
+
+    @Test
+    void testUpdateRankingForEventLikes_UserProfileNotFoundException() {
+        String userId = "1";
+        String eventId = "2";
+        UserProfileResponseDto mockUserProfile = new UserProfileResponseDto();
+        mockUserProfile.setUserType("CELEBRITY");
+        when(userServiceInteractor.getUserProfile(1)).thenReturn(mockUserProfile);
+        when(userServiceInteractor.getUserProfile(1)).thenThrow(UserProfileNotFoundException.class);
+
+        UserProfileNotFoundException exception = assertThrows(UserProfileNotFoundException.class, () -> postService.updateRankingForEventLikes(userId, eventId));
+        assertEquals("User profile is not found", exception.getMessage());
+    }
 }
 

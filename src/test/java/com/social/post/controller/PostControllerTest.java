@@ -6,6 +6,7 @@ import com.social.post.entities.UserPost;
 import com.social.post.enums.PostType;
 import com.social.post.exception.PostNotFoundException;
 import com.social.post.exception.PostSaveException;
+import com.social.post.exception.PostServiceException;
 import com.social.post.services.impl.PostServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -15,6 +16,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,7 +99,7 @@ class PostControllerTest {
 
     @Test
     void testCreatePost_InternalServerError() throws Exception {
-        Mockito.doThrow(new RuntimeException("Internal Server Error"))
+        Mockito.doThrow(new PostServiceException("Internal Server Error"))
                 .when(postService).createPost(Mockito.any(CreateUserPostDto.class));
 
         ResultActions resultActions = mockMvc.perform(post("/api/v1/posts")
@@ -141,7 +144,7 @@ class PostControllerTest {
 
     @Test
     void testCreatePost_Exception() throws Exception {
-        Mockito.doThrow(new RuntimeException("Internal Server Error"))
+        Mockito.doThrow(new PostServiceException("Internal Server Error"))
                 .when(postService).createPost(Mockito.any(CreateUserPostDto.class));
 
         ResultActions resultActions = mockMvc.perform(post("/api/v1/posts")
@@ -154,16 +157,27 @@ class PostControllerTest {
 
     @Test
     void testCreateEvent_Exception() throws Exception {
-        Mockito.doThrow(new PostSaveException("Internal Server Error"))
+        Mockito.doThrow(new PostServiceException("Internal Server Error"))
                 .when(postService).createEventPost(Mockito.any(CreateUserEventDto.class));
 
         ResultActions resultActions = mockMvc.perform(post("/api/v1/posts/event")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"content\": {\"value\": \"Test event content\", \"postType\": \"TEXT\"}}"));
+                .content("{\n" +
+                        "    \"userId\": 102,\n" +
+                        "    \"userLocation\": \"Bangalore\",\n" +
+                        "    \"eventName\": \"My First Event\",\n" +
+                        "    \"content\": {\n" +
+                        "    \"postType\": \"IMAGE\",\n" +
+                        "    \"value\": \"s3:/location/\"\n" +
+                        "     },\n" +
+                        "    \"eventStartDate\": \"2023-14-18T12:00:00.000Z\",\n" +
+                        "    \"eventEndDate\": \"2023-15-19T12:00:00.000Z\"\n" +
+                        "}\n"));
 
-        resultActions
-                .andExpect(status().isInternalServerError());
+         resultActions.andExpect(status().isInternalServerError());
     }
+
+
 
     @Test
     void testGetEventByUserId_PostNotFoundException() throws Exception {

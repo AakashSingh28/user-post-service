@@ -17,7 +17,4 @@ public class CreateUserPostDto {
     private Content content;
 
     private String userLocation;
-
-    @NotNull
-    private PostType PostType;
 }

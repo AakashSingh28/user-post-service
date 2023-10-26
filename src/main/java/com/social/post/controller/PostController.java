@@ -3,6 +3,7 @@ package com.social.post.controller;
 import com.social.post.dtos.*;
 import com.social.post.entities.UserPost;
 import com.social.post.exception.PostNotFoundException;
+import com.social.post.exception.PostSaveException;
 import com.social.post.exception.PostServiceException;
 import com.social.post.exception.UserProfileNotFoundException;
 import com.social.post.services.impl.PostServiceImpl;
@@ -31,18 +32,6 @@ public class PostController {
         this.postService = postService;
     }
 
-    @GetMapping
-    public ResponseEntity<List<UserPost>> getAllPosts() {
-        try {
-            logger.info("Fetching all posts");
-            List<UserPost> posts = postService.getAllPosts();
-            return new ResponseEntity<>(posts, HttpStatus.OK);
-        } catch (Exception e) {
-            logger.error("Error fetching all posts: {}", e.getMessage(), e);
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
 
     @PostMapping
     public ResponseEntity<String> createPost(@RequestBody @Valid CreateUserPostDto createUserPostDto) {
@@ -50,7 +39,13 @@ public class PostController {
         try {
             postService.createPost(createUserPostDto);
             return new ResponseEntity<>("Post created successfully", HttpStatus.CREATED);
-        } catch (Exception e) {
+        }
+        catch (UserProfileNotFoundException e){
+            log.error("Error processing post creation: {}", e.getMessage(), e);
+            return new ResponseEntity<>("Failed to create post", HttpStatus.NOT_FOUND);
+        }
+        catch (PostServiceException e) {
+            log.error("Error processing post creation: {}", e.getMessage());
             logger.error("Error creating post: {}", e.getMessage(), e);
             return new ResponseEntity<>("Failed to create post", HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -62,7 +57,12 @@ public class PostController {
         try {
             postService.createEventPost(createUserPostDto);
             return new ResponseEntity<>("Post created successfully", HttpStatus.CREATED);
-        } catch (Exception e) {
+        } catch (UserProfileNotFoundException e){
+            log.error("Error processing post creation: {}", e.getMessage(), e);
+            return new ResponseEntity<>("Failed to create post", HttpStatus.NOT_FOUND);
+        }
+        catch (PostServiceException e) {
+            log.error("Error processing post creation: {}", e.getMessage());
             logger.error("Error creating post: {}", e.getMessage(), e);
             return new ResponseEntity<>("Failed to create post", HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -82,6 +82,10 @@ public class PostController {
             logger.warn("PostNotFoundException: {}", ex.getMessage());
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
+        catch (PostServiceException e) {
+            logger.error("Error creating post: {}", e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @GetMapping("/event/{userId}/{lastDays}")
@@ -96,6 +100,12 @@ public class PostController {
         } catch (PostNotFoundException e) {
             logger.warn("PostNotFoundException: {}", e.getMessage());
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }catch (UserProfileNotFoundException e){
+            log.error("Error processing post creation: {}", e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }catch (PostServiceException e) {
+            logger.error("Error while not fetching event {}", e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -106,7 +116,13 @@ public class PostController {
         try {
             postService.updateRankingForPostLikes(postId,userId);
             return ResponseEntity.ok("Post ranking updated successfully");
-        } catch (PostServiceException e) {
+        } catch (UserProfileNotFoundException e){
+            log.error("Error processing post creation: {}", e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }catch (PostNotFoundException e) {
+            logger.warn("PostNotFoundException: {}", e.getMessage());
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }catch (PostServiceException e) {
             logger.error("Error updating post ranking: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update post ranking");
         }
@@ -119,6 +135,12 @@ public class PostController {
         try {
             postService.updateRankingForEventLikes(userId,eventId);
             return ResponseEntity.ok("Post ranking updated successfully");
+        } catch (UserProfileNotFoundException e){
+            log.error("Error processing post creation: {}", e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        } catch (PostNotFoundException e) {
+            logger.warn("PostNotFoundException: {}", e.getMessage());
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         } catch (PostServiceException e) {
             logger.error("Error updating post ranking: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update post ranking");
@@ -134,11 +156,27 @@ public class PostController {
         } catch (UserProfileNotFoundException e) {
             logger.error("Error updating post ranking: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Failed to update post ranking");
+        } catch (PostNotFoundException e) {
+            logger.warn("PostNotFoundException: {}", e.getMessage());
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }catch (PostServiceException e) {
             logger.error("Error updating post ranking: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update post ranking");
         }
     }
+
+    @GetMapping
+    public ResponseEntity<List<UserPost>> getAllPosts() {
+        try {
+            logger.info("Fetching all posts");
+            List<UserPost> posts = postService.getAllPosts();
+            return new ResponseEntity<>(posts, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Error fetching all posts: {}", e.getMessage(), e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 
 
 }

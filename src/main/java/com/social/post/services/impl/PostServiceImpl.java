@@ -10,6 +10,7 @@ import com.social.post.respositories.EventRepository;
 import com.social.post.respositories.PostRepository;
 import com.social.post.services.PostService;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -29,20 +30,16 @@ public class PostServiceImpl implements PostService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
+    @Setter
     @Value("${kafka.post.topic-name}")
     private String postTopicName;
+    @Setter
     @Value("${kafka.event.topic-name}")
     private String EventTopicName;
 
     public List<UserPost> getAllPosts() {
         log.info("Fetching all posts");
         return postRepository.findAll();
-    }
-
-    public UserPost getPostById(Long postId) {
-        log.info("Fetching post by ID: {}", postId);
-        return postRepository.findById(postId)
-                .orElseThrow(() -> new UserProfileNotFoundException("Post not found with ID: " + postId));
     }
 
     public void createPost(CreateUserPostDto userPostDto){
@@ -78,9 +75,9 @@ public class PostServiceImpl implements PostService {
             log.error("Error processing post creation: {}", e.getMessage(), e);
             throw new UserProfileNotFoundException("User profile is not found");
         }
-        catch (PostSaveException e) {
+        catch (PostServiceException e) {
             log.error("Error processing post creation: {}", e.getMessage());
-            throw new PostSaveException("Error creating or saving post",e.getCause());
+            throw new PostServiceException("Error creating or saving post",e.getCause());
         }
     }
 
@@ -93,6 +90,7 @@ public class PostServiceImpl implements PostService {
         eventPost.setEventStartDate(createUserPostDto.getEventEndDate());
         eventPost.setEventEndDate(createUserPostDto.getEventEndDate());
         eventPost.setUserLocation(createUserPostDto.getUserLocation());
+        eventPost.setEventPost(true);
         try {
             UserProfileResponseDto userProfileResponseDto = userServiceInteractor.getUserProfile(eventPost.getUserId());
             if(userProfileResponseDto == null){
@@ -117,7 +115,7 @@ public class PostServiceImpl implements PostService {
 
         } catch (UserProfileNotFoundException ex) {
             log.error("Error processing post creation: {}", ex.getMessage());
-            throw new PostSaveException("Error creating or saving post", ex.getCause());
+            throw new UserProfileNotFoundException("User profile is not found", ex.getCause());
         }catch (PostSaveException ex) {
             log.error("Error processing post creation: {}", ex.getMessage());
             throw new PostSaveException("Error creating or saving post", ex.getCause());
@@ -144,6 +142,7 @@ public class PostServiceImpl implements PostService {
                 UserPostResponseDto userPostResponse = new UserPostResponseDto();
                 userPostResponse.setPostScore(userPost.getPostScore());
                 userPostResponse.setContent(userPost.getContent().getValue());
+                userPostResponse.setPostType(userPost.getContent().getPostType().name());
                 userPostResponse.setUserAndComments(userPost.getUserAndComments());
                 userPostResponse.setUsersLike(userPost.getUsersLike());
                 userPostResponse.setUserLocation(userPost.getUserLocation());
@@ -154,10 +153,10 @@ public class PostServiceImpl implements PostService {
 
         } catch (UserProfileNotFoundException e) {
             log.error("Error while fetching posts for user {}: {}", userId, e.getMessage());
-            throw new UserPostsFetchException("Error fetching user posts", e.getCause());
+            throw new UserProfileNotFoundException("Error fetching user posts", e.getCause());
         }catch (PostServiceException e) {
             log.error("Error while fetching posts for user {}: {}", userId, e.getMessage());
-            throw new UserPostsFetchException("Error fetching user posts", e.getCause());
+            throw new PostServiceException("Error fetching user posts", e.getCause());
         }
     }
 
@@ -182,7 +181,9 @@ public class PostServiceImpl implements PostService {
                 userEventResponseDto.setEventStartDate(eventPost.getEventStartDate());
                 userEventResponseDto.setEventEndDate(eventPost.getEventEndDate());
                 userEventResponseDto.setPostScore(eventPost.getPostScore());
+                userEventResponseDto.setPostType(eventPost.getContent().getPostType().name());
                 userEventResponseDto.setContent(eventPost.getContent().getValue());
+                userEventResponseDto.setEventPost(eventPost.isEventPost());
                 userEventResponseDto.setUserAndComments(eventPost.getUserAndComments());
                 userEventResponseDto.setUsersLike(eventPost.getUsersLike());
                 userEventResponseDto.setUserLocation(eventPost.getUserLocation());
@@ -207,6 +208,11 @@ public class PostServiceImpl implements PostService {
             if(optionalUserPost.isEmpty()){
                 throw new PostNotFoundException("Post not found for the id"+commentRequestDto.getPostId());
             }
+            UserProfileResponseDto userProfileResponseDto = userServiceInteractor.getUserProfile(commentRequestDto.getUserId());
+
+            if(userProfileResponseDto == null){
+                throw new UserProfileNotFoundException("User profile is not found");
+            }
 
                 UserPost userPost = optionalUserPost.get();
                 int newRanking = userPost.getPostScore() + 2;
@@ -227,10 +233,10 @@ public class PostServiceImpl implements PostService {
                 log.info("Post ranking updated successfully for post with ID: {}", commentRequestDto.getComment());
 
         } catch (UserProfileNotFoundException e) {
-            log.error("Error updating post ranking based on likes: {}", e.getMessage(), e.getMessage());
+            log.error("Error updating post ranking based on likes: {}", e.getMessage());
             throw new UserProfileNotFoundException("Failed to update post ranking based on likes", e.getCause());
         }catch (PostServiceException e) {
-            log.error("Error updating post ranking based on likes: {}", e.getMessage(), e.getMessage());
+            log.error("Error updating post ranking based on likes: {}", e.getMessage());
             throw new PostServiceException("Failed to update post ranking based on likes", e.getCause());
         }
     }
@@ -240,6 +246,11 @@ public class PostServiceImpl implements PostService {
             Optional<UserPost> optionalUserPost = postRepository.findById(postId);
             if(optionalUserPost.isEmpty()){
                 throw new PostNotFoundException("Post not found for the id"+postId);
+            }
+            UserProfileResponseDto userProfileResponseDto = userServiceInteractor.getUserProfile(Long.parseLong(userId));
+
+            if(userProfileResponseDto == null){
+                throw new UserProfileNotFoundException("User profile is not found");
             }
                 UserPost userPost = optionalUserPost.get();
                 int newRanking = userPost.getPostScore() + 4;
@@ -264,10 +275,16 @@ public class PostServiceImpl implements PostService {
     public void updateRankingForEventLikes(String userId, String eventId) {
         {
             try {
+
+                UserProfileResponseDto userProfileResponseDto = userServiceInteractor.getUserProfile(Long.parseLong(userId));
+                if(userProfileResponseDto == null){
+                    throw new UserProfileNotFoundException("User profile is not found");
+                }
                 Optional<EventPost> optionalUserPost = eventRepository.findById(eventId);
                  if(optionalUserPost.isEmpty()){
                      throw new PostNotFoundException("Post not found for the id"+eventId);
                  }
+
                     EventPost eventPost = optionalUserPost.get();
                     int newRanking = eventPost.getPostScore() + 4;
                     Set<String> updatedLikes = eventPost.getUsersLike();
@@ -280,10 +297,10 @@ public class PostServiceImpl implements PostService {
                     log.info("Event ranking updated successfully for post with ID: {}", eventId);
 
             } catch (UserProfileNotFoundException e) {
-                log.error("Error updating event ranking based on likes: {}", e.getMessage(), e.getMessage());
-                throw new UserProfileNotFoundException("Failed to update event ranking based on likes", e.getCause());
+                log.error("User profile is not found: {}", e.getMessage());
+                throw new UserProfileNotFoundException("User profile is not found", e.getCause());
             }catch (PostServiceException e) {
-                log.error("Error updating event ranking based on likes: {}", e.getMessage(), e.getMessage());
+                log.error("Error updating event ranking based on likes: {}", e.getMessage());
                 throw new PostServiceException("Failed to update event ranking based on likes", e.getCause());
             }
         }

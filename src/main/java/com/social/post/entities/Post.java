@@ -1,5 +1,6 @@
 package com.social.post.entities;
 
+import com.social.post.enums.PostType;
 import jakarta.persistence.Id;
 import lombok.Data;
 
@@ -14,6 +15,7 @@ public abstract class Post {
     protected Content content;
     protected int postScore;
     protected String userLocation;
+    protected boolean isEventPost;
     protected Map<Long, List<String>> userAndComments;
     protected Set<String> usersLike;
 

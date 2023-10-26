@@ -18,9 +18,6 @@ public class CreateUserEventDto {
     private String userLocation;
 
     @NotNull
-    private PostType PostType;
-
-    @NotNull
     private String eventName;
     @NotNull
     private Date eventStartDate;

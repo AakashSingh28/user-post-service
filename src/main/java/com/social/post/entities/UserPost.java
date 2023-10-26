@@ -11,4 +11,5 @@ public class UserPost extends Post{
     @Id
     private String id;
 
+
 }

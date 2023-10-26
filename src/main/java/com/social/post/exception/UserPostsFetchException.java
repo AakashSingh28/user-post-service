@@ -5,4 +5,7 @@ public class UserPostsFetchException extends RuntimeException {
         super(message, cause);
     }
 
+    public UserPostsFetchException(String message) {
+        super(message);
+    }
 }

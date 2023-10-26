@@ -1,4 +1,5 @@
 package com.social.post.dtos;
+import com.social.post.enums.PostType;
 import lombok.Data;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +14,11 @@ public class UserPostResponseDto {
 
     private int postScore;
 
+    private String postType;
+
     private Set<String> usersLike;
+
+    private boolean isEventPost;
 
     private Map<Long, List<String>> userAndComments;
 }
