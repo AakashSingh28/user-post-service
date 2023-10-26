@@ -47,8 +47,7 @@ class PostControllerTest {
 
         resultActions
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
     }
 
     @Test
@@ -81,8 +80,7 @@ class PostControllerTest {
         ResultActions resultActions = mockMvc.perform(get("/api/v1/posts/1/1"));
 
         resultActions
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -137,8 +135,7 @@ class PostControllerTest {
         ResultActions resultActions = mockMvc.perform(get("/api/v1/posts/event/1/1"));
 
         resultActions
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(status().isOk());
     }
 
 

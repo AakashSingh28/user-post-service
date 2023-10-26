@@ -3,7 +3,6 @@ package com.social.post.controller;
 import com.social.post.dtos.*;
 import com.social.post.entities.UserPost;
 import com.social.post.exception.PostNotFoundException;
-import com.social.post.exception.PostSaveException;
 import com.social.post.exception.PostServiceException;
 import com.social.post.exception.UserProfileNotFoundException;
 import com.social.post.services.impl.PostServiceImpl;
