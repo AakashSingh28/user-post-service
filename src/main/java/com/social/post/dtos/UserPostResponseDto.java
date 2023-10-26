@@ -1,14 +1,19 @@
 package com.social.post.dtos;
-
-import com.social.post.entities.Content;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class UserPostResponseDto {
-    private Content content;
+
+    private String content;
+
+    private String userLocation;
+
     private int postScore;
+
+    private Set<String> usersLike;
+
+    private Map<Long, List<String>> userAndComments;
 }

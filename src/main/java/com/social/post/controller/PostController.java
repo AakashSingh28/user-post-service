@@ -1,9 +1,10 @@
 package com.social.post.controller;
 
-import com.social.post.dtos.CreateUserPostDto;
-import com.social.post.dtos.UserPostResponseDto;
+import com.social.post.dtos.*;
 import com.social.post.entities.UserPost;
 import com.social.post.exception.PostNotFoundException;
+import com.social.post.exception.PostServiceException;
+import com.social.post.exception.UserProfileNotFoundException;
 import com.social.post.services.impl.PostServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -55,9 +56,22 @@ public class PostController {
         }
     }
 
+    @PostMapping(value = "/event")
+    public ResponseEntity<String> createEvent(@RequestBody @Valid CreateUserEventDto createUserPostDto) {
+        logger.info("Creating a new post");
+        try {
+            postService.createEventPost(createUserPostDto);
+            return new ResponseEntity<>("Post created successfully", HttpStatus.CREATED);
+        } catch (Exception e) {
+            logger.error("Error creating post: {}", e.getMessage(), e);
+            return new ResponseEntity<>("Failed to create post", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
 
     @GetMapping("{userId}/{lastDays}")
-    public ResponseEntity<List<UserPostResponseDto>> getPostByUserId(@PathVariable long userId, @PathVariable int lastDays) {
+    public ResponseEntity<List<UserPostResponseDto>> getPostByUserId(@PathVariable long userId,
+                                                                     @PathVariable int lastDays) {
         try {
             logger.info("Fetching posts for user with ID: {} for the last {} days", userId, lastDays);
             List<UserPostResponseDto> userPosts = postService.getUserPostsByUserIdAndLastDays(userId, lastDays);
@@ -69,5 +83,62 @@ public class PostController {
             return new ResponseEntity<>(HttpStatus.NOT_FOUND);
         }
     }
+
+    @GetMapping("/event/{userId}/{lastDays}")
+    public ResponseEntity<List<UserEventResponseDto>> getEventByUserId(@PathVariable long userId,
+                                                                       @PathVariable int lastDays) {
+        try {
+            logger.info("Fetching posts for user with ID: {} for the last {} days", userId, lastDays);
+            List<UserEventResponseDto> userPosts = postService.getUserEventsByUserIdAndLastDays(userId, lastDays);
+            logger.info("Posts fetched successfully");
+            return new ResponseEntity<>(userPosts, HttpStatus.OK);
+
+        } catch (PostNotFoundException e) {
+            logger.warn("PostNotFoundException: {}", e.getMessage());
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
+    }
+
+    @PostMapping("post/like/{userId}/{postId}")
+    public ResponseEntity<String> updateRankingForPostLike(@PathVariable String postId,
+                                                           @PathVariable String userId) {
+        logger.info("Updating post ranking");
+        try {
+            postService.updateRankingForPostLikes(postId,userId);
+            return ResponseEntity.ok("Post ranking updated successfully");
+        } catch (PostServiceException e) {
+            logger.error("Error updating post ranking: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update post ranking");
+        }
+    }
+
+    @PostMapping("event/like/{userId}/{eventId}")
+    public ResponseEntity<String> updateRankingForEventLike(@PathVariable String userId,
+                                                            @PathVariable String eventId) {
+        logger.info("Updating post ranking");
+        try {
+            postService.updateRankingForEventLikes(userId,eventId);
+            return ResponseEntity.ok("Post ranking updated successfully");
+        } catch (PostServiceException e) {
+            logger.error("Error updating post ranking: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update post ranking");
+        }
+    }
+
+    @PostMapping("/comment")
+    public ResponseEntity<String> updateRankingForComment(@RequestBody @Valid UserCommentRequestDto commentRequestDto) {
+        logger.info("Updating post ranking");
+        try {
+            postService.updateRankingForComments(commentRequestDto);
+            return ResponseEntity.ok("Post ranking updated successfully");
+        } catch (UserProfileNotFoundException e) {
+            logger.error("Error updating post ranking: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Failed to update post ranking");
+        }catch (PostServiceException e) {
+            logger.error("Error updating post ranking: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update post ranking");
+        }
+    }
+
 
 }

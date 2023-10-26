@@ -1,13 +1,16 @@
 package com.social.post.services.impl;
 import com.social.post.dtos.CreateUserPostDto;
+import com.social.post.dtos.UserCommentRequestDto;
 import com.social.post.dtos.UserPostResponseDto;
 import com.social.post.dtos.UserProfileResponseDto;
 import com.social.post.entities.Content;
+import com.social.post.entities.EventPost;
 import com.social.post.entities.UserPost;
 import com.social.post.exception.PostSaveException;
 import com.social.post.exception.UserPostsFetchException;
 import com.social.post.exception.UserProfileNotFoundException;
 import com.social.post.interactors.UserServiceInteractor;
+import com.social.post.respositories.EventRepository;
 import com.social.post.respositories.PostRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -16,9 +19,7 @@ import org.mockito.Mockito;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -31,6 +32,8 @@ class PostServiceImplTest {
     private KafkaTemplate<String, Object> kafkaTemplate;
     @Mock
     private PostRepository postRepository;
+    @Mock
+    private EventRepository eventRepository;
 
     @Mock
     private UserServiceInteractor userServiceInteractor;
@@ -70,7 +73,7 @@ class PostServiceImplTest {
         createUserPostDto.setContent(content);
 
         UserPost mockUserPost = new UserPost();
-        mockUserPost.setId("1");
+        mockUserPost.setUserId(1);
         mockUserPost.setUserId(userId);
 
         when(postRepository.save(any(UserPost.class))).thenReturn(mockUserPost);
@@ -136,6 +139,58 @@ class PostServiceImplTest {
         } catch (PostSaveException exception) {
             assertEquals("Error creating or saving post" , exception.getMessage());
         }
+    }
+
+    @Test
+    void testUpdateRankingForComments() {
+        UserCommentRequestDto commentRequestDto = new UserCommentRequestDto();
+        commentRequestDto.setUserId(1L);
+        commentRequestDto.setPostId("1");
+        commentRequestDto.setComment("This is a comment");
+
+        UserPost mockUserPost = new UserPost();
+        mockUserPost.setId("1");
+        mockUserPost.setPostScore(1);
+        mockUserPost.setUserAndComments(new HashMap<>());
+
+        when(postRepository.findById(commentRequestDto.getPostId())).thenReturn(Optional.of(mockUserPost));
+        assertDoesNotThrow(() -> postService.updateRankingForComments(commentRequestDto));
+        assertEquals(3, mockUserPost.getPostScore());
+        assertTrue(mockUserPost.getUserAndComments().containsKey(commentRequestDto.getUserId()));
+        assertEquals(1, mockUserPost.getUserAndComments().get(commentRequestDto.getUserId()).size());
+        assertEquals(commentRequestDto.getComment(), mockUserPost.getUserAndComments().get(commentRequestDto.getUserId()).get(0));
+    }
+
+    @Test
+    void testUpdateRankingForPostLikes() {
+        String postId = "1";
+        String userId = "2";
+
+        UserPost mockUserPost = new UserPost();
+        mockUserPost.setId(postId);
+        mockUserPost.setPostScore(1);
+        mockUserPost.setUsersLike(new HashSet<>());
+
+        when(postRepository.findById(postId)).thenReturn(Optional.of(mockUserPost));
+        assertDoesNotThrow(() -> postService.updateRankingForPostLikes(postId, userId));
+        assertEquals(5, mockUserPost.getPostScore());
+        assertTrue(mockUserPost.getUsersLike().contains(userId));
+    }
+
+    @Test
+    void testUpdateRankingForEventLikes() {
+        String userId = "1";
+        String eventId = "2";
+
+        EventPost mockEventPost = new EventPost();
+        mockEventPost.setId(eventId);
+        mockEventPost.setPostScore(1);
+        mockEventPost.setUsersLike(new HashSet<>());
+
+        when(eventRepository.findById(eventId)).thenReturn(Optional.of(mockEventPost));
+        assertDoesNotThrow(() -> postService.updateRankingForEventLikes(userId, eventId));
+        assertEquals(5, mockEventPost.getPostScore());
+        assertTrue(mockEventPost.getUsersLike().contains(userId));
     }
 
 }

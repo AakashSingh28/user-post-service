@@ -5,19 +5,25 @@ import com.social.post.enums.PostType;
 import lombok.Data;
 
 import javax.validation.constraints.NotNull;
-
+import java.util.Date;
 @Data
-public class CreateUserPostDto {
-  //  @NotNull
-  //  private long postId;
+public class CreateUserEventDto {
+
     @NotNull
     private long userId;
 
     @NotNull
     private Content content;
-
+    @NotNull
     private String userLocation;
 
     @NotNull
     private PostType PostType;
+
+    @NotNull
+    private String eventName;
+    @NotNull
+    private Date eventStartDate;
+    @NotNull
+    private Date eventEndDate;
 }
